@@ -36,6 +36,26 @@ If you only want to use the tools in your current terminal window:
 
 ---
 
+## Method 3: Linux / macOS Installation
+
+If you are using Bash or Zsh on Linux or macOS:
+
+1.  **Open your shell profile** (e.g., `~/.bashrc` or `~/.zshrc`):
+    ```bash
+    nano ~/.bashrc
+    ```
+
+2.  **Copy and Paste** the content of `claude_tools.sh` at the end of the file.
+
+3.  **Source the file**:
+    ```bash
+    source ~/.bashrc
+    ```
+
+*Note: For the best experience on Linux, it is recommended to install `fzf` (interactive finder) and `jq` (JSON processor).*
+
+---
+
 ## Available Commands
 
 ### 1. `lsf` (List Sessions)
