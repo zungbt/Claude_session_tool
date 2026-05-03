@@ -39,19 +39,22 @@ If you only want to use the tools in your current terminal window:
 ## Available Commands
 
 ### 1. `lsf` (List Sessions)
-Lists all Claude sessions in `C:\Users\d\.claude\session-env` sorted by the most recently modified.
+Lists all Claude sessions in your `.claude\session-env` directory, sorted by the most recently modified.
 
 ### 2. `cr` (Claude Resume)
-Opens an interactive menu where you can:
-*   Use **Up/Down Arrow Keys** to select a session.
+Opens an interactive menu showing your recent sessions with:
+*   **Session IDs** (Shortened).
+*   **Last Active Date/Time**.
+*   **First Prompt/Display Name** (to easily identify what the session was about).
+
+**Controls:**
+*   Use **Up/Down Arrow Keys** to navigate.
 *   Press **Enter** to resume the selected session.
 *   Press **Esc** to cancel.
 
 ---
 
 ## Customization
-If your Claude sessions are stored in a different location, open `claude_tools.ps1` and change this line at the top of both functions:
-```powershell
-$path = "C:\Users\d\.claude\session-env"
-```
+The tool automatically detects your Claude directory using `$env:USERPROFILE\.claude`. 
+If your sessions are stored in a custom location, you can modify the paths at the top of the functions in `claude_tools.ps1`.
 
