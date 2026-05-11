@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+import argparse
+import platform
+import shutil
+from pathlib import Path
+
+# Remove hardcoded key for security
+# GOOGLE_KEY = "..." 
+
+def get_api_key():
+    # 1. Try environment variable
+    key = os.environ.get("GOOGLE_API_KEY")
+    if key:
+        return key
+
+    # 2. Try .env file in current directory
+    env_path = Path(".env")
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("GOOGLE_API_KEY="):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    
+    return None
+
+def run_cmd(cmd, env=None):
+    current_env = os.environ.copy()
+    if env:
+        current_env.update(env)
+    # On Windows, shell=True is needed for many commands
+    return subprocess.run(cmd, shell=True, env=current_env)
+
+def get_claude_dir():
+    # Windows typically uses %USERPROFILE%\.claude
+    # Linux/Mac uses ~/.claude
+    return Path.home() / ".claude"
+
+def install():
+    print(f"--- Detected System: {platform.system()} ---")
+    print("--- Installing Graphifyy & Dependencies ---")
+    run_cmd("pip install graphifyy openai")
+    
+    print("--- Patching Graphify (Disabling Thinking) ---")
+    try:
+        import graphify.llm
+        path = Path(graphify.llm.__file__)
+        content = path.read_text(encoding="utf-8")
+        if '"reasoning_effort": "low",' in content:
+            new_content = content.replace('"reasoning_effort": "low",', "")
+            path.write_text(new_content, encoding="utf-8")
+            print(f"Successfully patched: {path}")
+        else:
+            print("Already patched or reasoning_effort not found.")
+    except ImportError:
+        print("Graphify not found. Please run pip install first.")
+
+def update_graph():
+    print("--- Starting Graphify Update ---")
+    api_key = get_api_key()
+    
+    if not api_key:
+        print("\n[ERROR] Không tìm thấy GOOGLE_API_KEY!")
+        print("Vui lòng thực hiện một trong hai cách sau:")
+        print("1. Chạy lệnh: set GOOGLE_API_KEY=your_key_here (Windows) hoặc export GOOGLE_API_KEY=... (Linux/Mac)")
+        print("2. Tạo file .env với nội dung: GOOGLE_API_KEY=your_key_here")
+        print("\n[ERROR] GOOGLE_API_KEY not found!")
+        print("Please set it via environment variable or a .env file.")
+        return
+
+    env = {"GOOGLE_API_KEY": api_key}
+    # Use python -m graphify if command not in path
+    cmd_prefix = "graphify"
+    
+    # Step 1: Extract
+    run_cmd(f"{cmd_prefix} extract . --backend gemini --model gemma-4-26b-a4b-it --max-concurrency 1", env=env)
+    # Step 2: Cluster & Report
+    run_cmd(f"{cmd_prefix} cluster-only .", env=env)
+    # Step 3: Tree
+    run_cmd(f"{cmd_prefix} tree --root .", env=env)
+    print("--- DONE! Check graphify-out/graph.html ---")
+
+def switch_account(account):
+    claude_dir = get_claude_dir()
+    target = claude_dir / f"settings.{account}.json"
+    link = claude_dir / "settings.json"
+    
+    if not target.exists():
+        print(f"Error: {target} does not exist!")
+        return
+        
+    try:
+        if link.is_symlink() or link.exists():
+            if platform.system() == "Windows" and not link.is_symlink():
+                # On Windows, sometimes it's easier to copy if symlink lacks perms
+                shutil.copy(target, link)
+                print(f"Copied {account} config to settings.json (Windows fallback).")
+                return
+            link.unlink()
+        
+        if platform.system() == "Windows":
+            # Windows symlink needs specific handling
+            subprocess.run(["cmd", "/c", "mklink", str(link), str(target)], check=True)
+        else:
+            os.symlink(target, link)
+        print(f"Switched to {account} successfully via symlink.")
+    except Exception as e:
+        print(f"Symlink failed, falling back to copy: {e}")
+        shutil.copy(target, link)
+        print(f"Switched to {account} successfully via copy.")
+
+def main():
+    parser = argparse.ArgumentParser(description="ZUNGG's Multi-platform Power Tool")
+    subparsers = parser.add_subparsers(dest="command")
+
+    subparsers.add_parser("update", help="Update Graphify map")
+    subparsers.add_parser("install", help="Install & Patch dependencies")
+    
+    switch_parser = subparsers.add_parser("switch", help="Switch Claude accounts")
+    switch_parser.add_argument("account", choices=["ram", "ckey"], help="Target account")
+
+    args = parser.parse_args()
+
+    if args.command == "update":
+        update_graph()
+    elif args.command == "install":
+        install()
+    elif args.command == "switch":
+        switch_account(args.account)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
